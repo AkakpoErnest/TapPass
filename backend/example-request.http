@@ -45,3 +45,29 @@ GET http://localhost:3000/balance/0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0
 ### Get Specific Token Balance (1=REGISTRATION_PASS, 2=EVENT_TICKET, 3=EVENT_POAP)
 GET http://localhost:3000/balance/0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0/1
 
+### ==================== OMNICHAIN (CROSS-CHAIN) ENDPOINTS ====================
+
+### Get Available Chains
+GET http://localhost:3000/omnichain/chains
+
+### Register Tag Cross-Chain
+POST http://localhost:3000/omnichain/register
+Content-Type: application/json
+
+{
+  "tagHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  "wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0",
+  "chains": ["sepolia", "arbitrumSepolia"]
+}
+
+### Cross-Chain Mint Token
+POST http://localhost:3000/omnichain/mint
+Content-Type: application/json
+
+{
+  "wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0",
+  "tokenId": 1,
+  "amount": 1,
+  "chain": "arbitrumSepolia"
+}
+

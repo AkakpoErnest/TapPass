@@ -61,6 +61,88 @@ class ApiService(private val baseUrl: String) {
             }
         }
     }
+
+    suspend fun registerTagCrossChain(tagHash: String, walletAddress: String, chains: List<String>): ApiResponse {
+        return withContext(Dispatchers.IO) {
+            try {
+                val chainsArray = org.json.JSONArray(chains)
+                val json = JSONObject().apply {
+                    put("tagHash", tagHash)
+                    put("wallet", walletAddress)
+                    put("chains", chainsArray)
+                }
+
+                val requestBody = json.toString().toRequestBody(jsonMediaType)
+                val request = Request.Builder()
+                    .url("$baseUrl/omnichain/register")
+                    .post(requestBody)
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val responseBody = response.body?.string() ?: ""
+
+                Log.d("ApiService", "Cross-chain registration response: $responseBody")
+
+                if (response.isSuccessful) {
+                    val jsonResponse = JSONObject(responseBody)
+                    ApiResponse(
+                        success = jsonResponse.optBoolean("success", false),
+                        message = jsonResponse.optString("message", ""),
+                        data = jsonResponse.optJSONObject("data")
+                    )
+                } else {
+                    ApiResponse(
+                        success = false,
+                        message = "Server error: ${response.code}",
+                        data = null
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("ApiService", "Error in cross-chain registration", e)
+                ApiResponse(
+                    success = false,
+                    message = e.message ?: "Unknown error",
+                    data = null
+                )
+            }
+        }
+    }
+
+    suspend fun getAvailableChains(): ApiResponse {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url("$baseUrl/omnichain/chains")
+                    .get()
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val responseBody = response.body?.string() ?: ""
+
+                if (response.isSuccessful) {
+                    val jsonResponse = JSONObject(responseBody)
+                    ApiResponse(
+                        success = jsonResponse.optBoolean("success", false),
+                        message = jsonResponse.optString("message", ""),
+                        data = jsonResponse.optJSONObject("data")
+                    )
+                } else {
+                    ApiResponse(
+                        success = false,
+                        message = "Server error: ${response.code}",
+                        data = null
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("ApiService", "Error getting chains", e)
+                ApiResponse(
+                    success = false,
+                    message = e.message ?: "Unknown error",
+                    data = null
+                )
+            }
+        }
+    }
 }
 
 data class ApiResponse(

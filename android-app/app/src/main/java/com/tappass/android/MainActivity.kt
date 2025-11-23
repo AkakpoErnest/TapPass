@@ -48,6 +48,9 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Tap an NFC tag to register", Toast.LENGTH_SHORT).show()
         }
 
+        // Load available chains on startup
+        loadAvailableChains()
+
         handleIntent(intent)
     }
 
@@ -120,23 +123,60 @@ class MainActivity : AppCompatActivity() {
             try {
                 binding.textStatus.text = "Registering tag..."
                 
-                // TODO: Replace with actual backend URL
-                val backendUrl = "http://localhost:3000/register"
-                val walletAddress = "0x0000000000000000000000000000000000000000" // TODO: Get from user
+                // TODO: Replace with actual backend URL (use 10.0.2.2 for emulator)
+                val backendUrl = "http://10.0.2.2:3000"
+                val walletAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0" // TODO: Get from user/wallet
                 
                 val apiService = ApiService(backendUrl)
-                val result = apiService.registerTag(tagHash, walletAddress)
+                
+                // Try cross-chain registration first (register to multiple chains)
+                val chains = listOf("sepolia", "arbitrumSepolia") // Default chains
+                val result = apiService.registerTagCrossChain(tagHash, walletAddress, chains)
                 
                 if (result.success) {
-                    binding.textStatus.text = "Tag registered successfully!"
-                    Toast.makeText(this@MainActivity, "Registration successful", Toast.LENGTH_SHORT).show()
+                    val chainsList = result.data?.optJSONArray("chains")?.let { array ->
+                        (0 until array.length()).map { array.getString(it) }
+                    } ?: emptyList()
+                    
+                    binding.textStatus.text = "Tag registered cross-chain!\nChains: ${chainsList.joinToString(", ")}"
+                    Toast.makeText(this@MainActivity, "Cross-chain registration successful!", Toast.LENGTH_LONG).show()
                 } else {
-                    binding.textStatus.text = "Registration failed"
-                    Toast.makeText(this@MainActivity, "Registration failed", Toast.LENGTH_SHORT).show()
+                    // Fallback to single-chain registration
+                    val fallbackResult = apiService.registerTag(tagHash, walletAddress)
+                    if (fallbackResult.success) {
+                        binding.textStatus.text = "Tag registered successfully!"
+                        Toast.makeText(this@MainActivity, "Registration successful", Toast.LENGTH_SHORT).show()
+                    } else {
+                        binding.textStatus.text = "Registration failed: ${fallbackResult.message}"
+                        Toast.makeText(this@MainActivity, "Registration failed", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
                 binding.textStatus.text = "Error: ${e.message}"
                 Toast.makeText(this@MainActivity, "Network error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun loadAvailableChains() {
+        lifecycleScope.launch {
+            try {
+                val backendUrl = "http://10.0.2.2:3000"
+                val apiService = ApiService(backendUrl)
+                val result = apiService.getAvailableChains()
+                
+                if (result.success) {
+                    val chainsData = result.data?.optJSONArray("chains")
+                    val chainsList = chainsData?.let { array ->
+                        (0 until array.length()).map { 
+                            array.getJSONObject(it).optString("name")
+                        }
+                    } ?: emptyList()
+                    
+                    Log.d("MainActivity", "Available chains: ${chainsList.joinToString()}")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading chains", e)
             }
         }
     }
